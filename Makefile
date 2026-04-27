@@ -78,8 +78,8 @@ roadmap:
 
 # Project scaffolding
 new-project:
-	@if [ -z "$(NAME)" ]; then echo "❌ Usage: make new-project NAME=project-name [LANGUAGE=python]"; exit 1; fi
-	@./scripts/new-project.sh "$(NAME)" "$(LANGUAGE)"
+	@if [ -z "$(NAME)" ]; then echo "❌ Usage: make new-project NAME=project-name [LANGUAGE=python] [DIR=.]"; exit 1; fi
+	@./scripts/new-project.sh "$(NAME)" "$(LANGUAGE)" "$(DIR)"
 
 # Skill Installation
 install-claude:
@@ -90,6 +90,34 @@ install-opencode:
 
 install-all:
 	@./scripts/install-skill.sh --all
+
+# CLI Wrapper Installation
+install-cli:
+	@echo "📦 Installing AES CLI wrapper to /usr/local/bin/aes"
+	@if [ -w /usr/local/bin ]; then \
+		cp bin/aes /usr/local/bin/aes && \
+		chmod +x /usr/local/bin/aes && \
+		echo "✅ Installed to /usr/local/bin/aes"; \
+	else \
+		echo "❌ /usr/local/bin is not writable. Run with sudo:"; \
+		echo "   sudo make install-cli"; \
+		exit 1; \
+	fi
+
+# Install everything: skill + CLI wrapper
+install: install-all install-cli
+	@echo "✅ AES fully installed!"
+	@echo "  • Skill available in ~/.config/opencode/skills/aes and ~/.claude/skills/aes"
+	@echo "  • CLI wrapper at /usr/local/bin/aes"
+	@echo ""
+	@echo "Usage:"
+	@echo "  In OpenCode: /load aes"
+	@echo "  From terminal: aes new-project NAME=myapp LANG=python"
+
+uninstall-cli:
+	@echo "🗑️  Removing AES CLI wrapper..."
+	@rm -f /usr/local/bin/aes
+	@echo "✅ Uninstalled from /usr/local/bin/aes"
 
 uninstall-skill:
 	@./scripts/install-skill.sh --uninstall
@@ -138,6 +166,11 @@ help:
 	@echo "    install-all      - Install for both"
 	@echo "    uninstall-skill  - Remove installed skill"
 	@echo "    list-skill       - Show installation locations"
+	@echo ""
+	@echo "  CLI Wrapper:"
+	@echo "    install-cli      - Install aes command to /usr/local/bin (may require sudo)"
+	@echo "    uninstall-cli    - Remove aes command from /usr/local/bin"
+	@echo "    install          - Install everything (skills + CLI wrapper)"
 	@echo ""
 	@echo "  Maintenance:"
 	@echo "    clean        - Remove build artifacts"
