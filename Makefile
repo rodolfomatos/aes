@@ -93,16 +93,30 @@ install-all:
 
 # CLI Wrapper Installation
 install-cli:
-	@echo "📦 Installing AES CLI wrapper to /usr/local/bin/aes"
+	@echo "📦 Installing AES CLI wrapper..."
+	@echo ""
 	@if [ -w /usr/local/bin ]; then \
 		cp bin/aes /usr/local/bin/aes && \
 		chmod +x /usr/local/bin/aes && \
-		echo "✅ Installed to /usr/local/bin/aes"; \
+		echo "✅ CLI wrapper installed to /usr/local/bin/aes"; \
 	else \
 		echo "❌ /usr/local/bin is not writable. Run with sudo:"; \
 		echo "   sudo make install-cli"; \
 		exit 1; \
 	fi
+	@echo ""
+	@echo "📦 Installing AES library to /usr/local/lib/aes"
+	@if [ -w /usr/local/lib ]; then \
+		mkdir -p /usr/local/lib/aes && \
+		cp -r . /usr/local/lib/aes && \
+		echo "✅ AES library installed to /usr/local/lib/aes"; \
+	else \
+		echo "⚠️  /usr/local/lib is not writable. Skipping library install."; \
+		echo "   You can still use AES if it's in your PATH or AES_ROOT is set."; \
+	fi
+	@echo ""
+	@echo "✅ AES CLI ready! Try: aes help"
+	@echo "   Set AES_ROOT if AES is installed elsewhere."
 
 # Install everything: skill + CLI wrapper
 install: install-all install-cli
@@ -115,9 +129,10 @@ install: install-all install-cli
 	@echo "  From terminal: aes new-project NAME=myapp LANG=python"
 
 uninstall-cli:
-	@echo "🗑️  Removing AES CLI wrapper..."
+	@echo "🗑️  Removing AES CLI wrapper and library..."
 	@rm -f /usr/local/bin/aes
-	@echo "✅ Uninstalled from /usr/local/bin/aes"
+	@rm -rf /usr/local/lib/aes
+	@echo "✅ Uninstalled from /usr/local/bin/aes and /usr/local/lib/aes"
 
 uninstall-skill:
 	@./scripts/install-skill.sh --uninstall

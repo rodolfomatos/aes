@@ -2,10 +2,56 @@
 set -e
 
 # AES Command-Line Wrapper
-# Usage: aes [command] [options]
+# Finds the AES installation automatically from common locations
 
-# Get the script directory (where the actual AES scripts are)
-AES_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Try to find AES_ROOT in order:
+# 1. Environment variable AES_ROOT
+# 2. Directory above this script (if installed as /usr/local/bin/aes -> /usr/local)
+# 3. Common installation locations
+# 4. Current directory if it looks like an AES project
+
+find_aes_root() {
+  # 1. Explicit env var
+  if [ -n "$AES_ROOT" ] && [ -f "$AES_ROOT/scripts/install-skill.sh" ]; then
+    echo "$AES_ROOT"
+    return 0
+  fi
+
+  # 2. Relative to this script
+  local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  local candidate="$script_dir/.."
+  if [ -f "$candidate/scripts/install-skill.sh" ]; then
+    echo "$candidate"
+    return 0
+  fi
+
+  # 3. Common locations (in order)
+  local locations=(
+    "/usr/local/lib/aes"
+    "/usr/lib/aes"
+    "/opt/aes"
+    "/opt/local/aes"
+    "$HOME/.config/opencode/skills/aes"
+    "$HOME/.claude/skills/aes"
+  )
+  for loc in "${locations[@]}"; do
+    if [ -f "$loc/scripts/install-skill.sh" ]; then
+      echo "$loc"
+      return 0
+    fi
+  done
+
+  # 4. Check if current directory is an AES project
+  if [ -f "./scripts/install-skill.sh" ]; then
+    echo "."
+    return 0
+  fi
+
+  echo "ERROR: Could not find AES installation. Set AES_ROOT environment variable." >&2
+  return 1
+}
+
+AES_ROOT="$(find_aes_root)" || exit 1
 
 # Available commands
 show_help() {
@@ -42,6 +88,9 @@ show_help() {
   echo ""
   echo "Options:"
   echo "  -h, --help     Show this help"
+  echo ""
+  echo "Configuration:"
+  echo "  AES_ROOT       Path to AES installation (optional, auto-detected)"
   echo ""
   echo "Note: All other make targets can be run directly with 'make' inside an AES project."
 }
@@ -87,7 +136,11 @@ case "$CMD" in
       exit 1
     fi
     
-    # Execute new-project script
+    # Execute new-project script from AES_ROOT
+    if [ ! -f "$AES_ROOT/scripts/new-project.sh" ]; then
+      echo "❌ new-project.sh not found in $AES_ROOT/scripts/" >&2
+      exit 1
+    fi
     "$AES_ROOT/scripts/new-project.sh" "$NAME" "$LANG" "$DIR"
     ;;
   
@@ -116,14 +169,26 @@ case "$CMD" in
       esac
     done
     
+    if [ ! -f "$AES_ROOT/scripts/install-skill.sh" ]; then
+      echo "❌ install-skill.sh not found in $AES_ROOT/scripts/" >&2
+      exit 1
+    fi
     "$AES_ROOT/scripts/install-skill.sh" $MODE
     ;;
   
   uninstall)
+    if [ ! -f "$AES_ROOT/scripts/install-skill.sh" ]; then
+      echo "❌ install-skill.sh not found in $AES_ROOT/scripts/" >&2
+      exit 1
+    fi
     "$AES_ROOT/scripts/install-skill.sh" --uninstall
     ;;
   
   list)
+    if [ ! -f "$AES_ROOT/scripts/install-skill.sh" ]; then
+      echo "❌ install-skill.sh not found in $AES_ROOT/scripts/" >&2
+      exit 1
+    fi
     "$AES_ROOT/scripts/install-skill.sh" --list
     ;;
   
