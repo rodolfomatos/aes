@@ -4,19 +4,32 @@ set -e
 # AES New Project Scaffolding
 # Creates a new project with AES structure
 
+# Determine AES_ROOT (where this script resides)
+if [ -z "$AES_ROOT" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  AES_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+fi
+
 PROJECT_NAME=$1
 LANGUAGE=${2:-python}
+TARGET_DIR=${3:-.}  # Default to current directory
 
 if [ -z "$PROJECT_NAME" ]; then
-  echo "❌ Usage: make new-project NAME=project-name [LANGUAGE=python]"
-  echo "   or: ./scripts/new-project.sh project-name [language]"
+  echo "❌ Usage: make new-project NAME=project-name [LANGUAGE=python] [DIR=.]"
+  echo "   or: ./scripts/new-project.sh project-name [language] [target-dir]"
   echo ""
   echo "Supported languages:"
-  echo "  python, javascript, go, rust, java, php"
+  echo "  python, javascript, go, rust, java, php, flutter"
+  echo ""
+  echo "Examples:"
+  echo "  make new-project NAME=myapp LANG=python     # Creates ./myapp"
+  echo "  make new-project NAME=myapp LANG=python DIR=/opt  # Creates /opt/myapp"
+  echo "  ./scripts/new-project.sh myapp python ~/projects  # Creates ~/projects/myapp"
   exit 1
 fi
 
 echo "🏗️  Scaffolding new AES project: $PROJECT_NAME (language: $LANGUAGE)"
+echo "📍 Target directory: $TARGET_DIR"
 echo ""
 
 # Validate name (alphanumeric, dash, underscore)
@@ -25,15 +38,22 @@ if [[ ! "$PROJECT_NAME" =~ ^[a-zA-Z0-9_-]+$ ]]; then
   exit 1
 fi
 
+# Resolve full path
+if [[ "$TARGET_DIR" = /* ]] || [[ "$TARGET_DIR" = ~/* ]]; then
+  FULL_PATH="$TARGET_DIR/$PROJECT_NAME"
+else
+  FULL_PATH="$(pwd)/$TARGET_DIR/$PROJECT_NAME"
+fi
+
 # Check if directory exists
-if [ -d "$PROJECT_NAME" ]; then
-  echo "❌ Directory '$PROJECT_NAME' already exists"
+if [ -d "$FULL_PATH" ]; then
+  echo "❌ Directory '$FULL_PATH' already exists"
   exit 1
 fi
 
 # Create directory structure
-mkdir -p "$PROJECT_NAME"
-cd "$PROJECT_NAME"
+mkdir -p "$FULL_PATH"
+cd "$FULL_PATH"
 
 mkdir -p docs
 mkdir -p src
@@ -178,19 +198,31 @@ Establish working project with AES quality gates passing.
 - What's still missing? (CI, deployment config, etc.)
 EOF
 
-# Copy language-specific templates
-if [ -d "../templates/$LANGUAGE" ]; then
-  echo "📋 Copying $LANGUAGE template..."
-  cp -r ../templates/$LANGUAGE/* .
-else
-  echo "⚠️  No template for $LANGUAGE, using generic"
+# Special handling for Flutter: use flutter create if available
+if [ "$LANGUAGE" = "flutter" ]; then
+  if command -v flutter &> /dev/null; then
+    echo "📱 Flutter detected. Generating project with flutter create..."
+    flutter create --org com.example --project-name "$PROJECT_NAME" .
+    echo "✅ Flutter project generated"
+  else
+    echo "⚠️  Flutter SDK not found in PATH."
+    echo "   Install Flutter or ensure 'flutter' command is available."
+    echo "   Attempting to use minimal template instead..."
+  fi
 fi
 
-# Special handling for Flutter: generate standard Flutter project structure
-if [ "$LANGUAGE" = "flutter" ] && [ ! -f "pubspec.yaml" ]; then
-  echo "⚡ Flutter detected but no template found. Please create Flutter project manually:"
-  echo "   flutter create --org com.example --project-name aes_project ."
-  echo "   Then run: make setup"
+# Copy language-specific templates (for non-Flutter or if flutter not available)
+if [ "$LANGUAGE" != "flutter" ] && [ -d "$AES_ROOT/templates/$LANGUAGE" ]; then
+  echo "📋 Copying $LANGUAGE template..."
+  cp -r "$AES_ROOT/templates/$LANGUAGE/*" .
+elif [ "$LANGUAGE" = "flutter" ] && [ ! -f "pubspec.yaml" ]; then
+  # Minimal flutter template fallback if flutter command not available
+  if [ -d "$AES_ROOT/templates/flutter" ]; then
+    echo "📋 Copying minimal Flutter template..."
+    cp -r "$AES_ROOT/templates/flutter/*" .
+  else
+    echo "⚠️  No template for flutter"
+  fi
 fi
 
 # Generate language-specific Makefile based on template or generic
@@ -417,7 +449,7 @@ esac
 # Ensure scripts/ is copied if not from template
 if [ ! -f "scripts/detect-language.sh" ]; then
   mkdir -p scripts
-  cp -r ../scripts/*.sh scripts/
+  cp -r "$AES_ROOT/scripts/"*.sh scripts/
   chmod +x scripts/*.sh
 fi
 
