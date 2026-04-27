@@ -1,0 +1,147 @@
+#!/bin/bash
+set -e
+
+# AES Command-Line Wrapper
+# Usage: aes [command] [options]
+
+# Get the script directory (where the actual AES scripts are)
+AES_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Available commands
+show_help() {
+  echo "AES (Aggressive Engineering Protocol) - CLI Wrapper"
+  echo ""
+  echo "Usage: aes <command> [options]"
+  echo ""
+  echo "Commands:"
+  echo "  new-project NAME=<name> LANG=<language> [DIR=.]"
+  echo "    Create a new AES project. Default directory is current (.)"
+  echo "    Examples:"
+  echo "      aes new-project NAME=myapp LANG=python"
+  echo "      aes new-project NAME=myapp LANG=python DIR=/opt"
+  echo ""
+  echo "  install [--claude|--opencode|--all]"
+  echo "    Install AES as a skill. Default is --all."
+  echo "    Examples:"
+  echo "      aes install --claude    # Install for Claude Code only"
+  echo "      aes install --opencode  # Install for OpenCode only"
+  echo "      aes install             # Install for both"
+  echo ""
+  echo "  uninstall"
+  echo "    Remove installed AES skills."
+  echo ""
+  echo "  list"
+  echo "    Show installed skill locations."
+  echo ""
+  echo "  shell [--<shell>]"
+  echo "    Configure shell integration. Currently a no-op for OpenCode."
+  echo "    Use: --bash, --zsh, --fish to add completion (future)."
+  echo ""
+  echo "  help"
+  echo "    Show this help message."
+  echo ""
+  echo "Options:"
+  echo "  -h, --help     Show this help"
+  echo ""
+  echo "Note: All other make targets can be run directly with 'make' inside an AES project."
+}
+
+# Parse command
+CMD="${1:-help}"
+shift 2>/dev/null || true
+
+case "$CMD" in
+  help|-h|--help)
+    show_help
+    ;;
+  
+  new-project)
+    # Parse arguments
+    NAME=""
+    LANG="python"
+    DIR="."
+    
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        NAME=*)
+          NAME="${1#NAME=}"
+          ;;
+        LANG=*|LANGUAGE=*)
+          LANG="${1#*=}"
+          ;;
+        DIR=*)
+          DIR="${1#DIR=}"
+          ;;
+        *)
+          echo "❌ Unknown option: $1"
+          show_help
+          exit 1
+          ;;
+      esac
+      shift
+    done
+    
+    if [ -z "$NAME" ]; then
+      echo "❌ NAME is required"
+      show_help
+      exit 1
+    fi
+    
+    # Execute new-project script
+    "$AES_ROOT/scripts/new-project.sh" "$NAME" "$LANG" "$DIR"
+    ;;
+  
+  install)
+    # Default to --all if no flags
+    MODE="--all"
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --claude)
+          MODE="--claude"
+          shift
+          ;;
+        --opencode)
+          MODE="--opencode"
+          shift
+          ;;
+        --all|--both)
+          MODE="--all"
+          shift
+          ;;
+        *)
+          echo "❌ Unknown option: $1"
+          show_help
+          exit 1
+          ;;
+      esac
+    done
+    
+    "$AES_ROOT/scripts/install-skill.sh" $MODE
+    ;;
+  
+  uninstall)
+    "$AES_ROOT/scripts/install-skill.sh" --uninstall
+    ;;
+  
+  list)
+    "$AES_ROOT/scripts/install-skill.sh" --list
+    ;;
+  
+  shell)
+    echo "⚠️  Shell integration not yet implemented."
+    echo "For now, manually add to your ~/.bashrc or ~/.zshrc:"
+    echo ""
+    echo "  alias aes='aes'  # (self-referential, but you need the binary in PATH)"
+    echo ""
+    echo "To enable, copy this script to /usr/local/bin/aes and:"
+    echo "  sudo cp bin/aes /usr/local/bin/aes"
+    echo "  sudo chmod +x /usr/local/bin/aes"
+    ;;
+  
+  *)
+    echo "❌ Unknown command: $CMD"
+    echo ""
+    show_help
+    exit 1
+    ;;
+esac
