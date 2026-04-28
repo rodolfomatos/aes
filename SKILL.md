@@ -9,7 +9,7 @@ description: >
 compatibility: claude-code, opencode, claude-desktop
 metadata:
   author: AES Maintainers
-  version: 2.1
+  version: 3.0
   tags: engineering, protocol, quality, documentation, testing
 ---
 
@@ -90,10 +90,7 @@ State the chosen approach clearly:
 
 ### Phase 4 — Validation
 
-Run quality gates (adapt to the project):
-```bash
-make check    # or: npm test / pytest / go test ./... / cargo test
-```
+Run quality gates appropriate for the project's language (see Language Playbooks below).
 
 Explicitly verify:
 - [ ] Tests pass (including edge cases you identified in Phase 1)
@@ -118,7 +115,9 @@ Before declaring done, answer:
 |------|-------|
 | ✅ Implemented | Code works for the happy path |
 | ✅ Edge cases | Boundary conditions handled and tested |
-| ✅ Tests pass | `make check` (or equivalent) exits 0 |
+| ✅ Tests pass | Language-specific test command exits 0 |
+| ✅ Lint passes | Language-specific linter exits 0 |
+| ✅ Format correct | Code formatter reports no changes needed |
 | ✅ Docs updated | VISION/REQUIREMENTS/ROADMAP reflect the change |
 | ✅ Reviewed | Simplicity and correctness confirmed |
 
@@ -140,13 +139,179 @@ a guess. A ROADMAP without priorities is noise.
 
 ---
 
+## Language Detection & Configuration (Self-Contained Playbook)
+
+As an LLM executing AES, you must determine the project language by inspecting the filesystem.
+No external scripts are used. Detection is based on presence of canonical files:
+
+| Language | Detection Files | Lint Command | Test Command | Format Command | Build Command | Run Command |
+|----------|----------------|--------------|--------------|----------------|---------------|-------------|
+| TypeScript/JavaScript | `package.json` | `npx eslint . --ext .js,.ts` | `npx jest` or `npm test` | `npx prettier --write .` | `npm run build` | `npm start` |
+| Python | `pyproject.toml` or `setup.py` or `setup.cfg` | `ruff check` | `pytest` | `ruff format` or `black` | `python -m build` | `python -m src` |
+| Go | `go.mod` | `go vet ./...` | `go test ./...` | `gofmt -w .` (in-place) or `go fmt ./...` | `go build` | `go run` |
+| Rust | `Cargo.toml` | `cargo clippy --all-targets --all-features` | `cargo test` | `cargo fmt --all --check` | `cargo build` | `cargo run` |
+| Java (Gradle) | `pom.xml` or `build.gradle` or `build.gradle.kts` | `./gradlew check` | `./gradlew test` | `google-java-format -i **/*.java` | `./gradlew build` | `./gradlew run` |
+| PHP (Composer) | `composer.json` | `php -l` (syntax) + `./vendor/bin/phpstan analyse` if present | `./vendor/bin/pest` or `./vendor/bin/phpunit` | `php-cs-fixer fix` | `composer install` | `php -S localhost:8000` |
+| Dart/Flutter | `pubspec.yaml` | `dart analyze` or `flutter analyze` | `dart test` or `flutter test` | `dart format .` | `flutter build` | `flutter run` |
+
+**Detection logic** (use this ordering):
+1. If `package.json` exists → JavaScript/TypeScript
+2. Else if `pyproject.toml` or `setup.py` or `setup.cfg` exists → Python
+3. Else if `go.mod` exists → Go
+4. Else if `Cargo.toml` exists → Rust
+5. Else if `pom.xml` or `build.gradle*` exists → Java
+6. Else if `composer.json` exists → PHP
+7. Else if `pubspec.yaml` exists → Dart/Flutter
+8. Else → unknown (use generic placeholders)
+
+**Note**: For Makefile generation, store detected commands in variables:
+- `AES_LANGUAGE`
+- `AES_LINT`
+- `AES_TEST`
+- `AES_FORMAT`
+- `AES_BUILD`
+- `AES_RUN`
+
+---
+
+## Scaffolding Playbook (Self-Contained)
+
+When creating a new project (`make new-project NAME=myapp LANG=python`), the LLM must:
+
+1. Create directory structure:
+   ```
+   myapp/
+   ├── docs/
+   │   ├── VISION.md
+   │   ├── PERSONAS.md
+   │   ├── REQUIREMENTS.md
+   │   ├── ROADMAP.md
+   │   └── TASKS/
+   ├── src/ (or language-specific equivalent)
+   ├── tests/ (or language-specific equivalent)
+   ├── .github/workflows/
+   ├── .aes/plugins/
+   ├── Makefile
+   └── (language-specific config files)
+   ```
+
+2. Populate `docs/` with templates (use placeholders that user must fill).
+
+3. Generate **base source code** using native ecosystem tools **when available**:
+   - **JavaScript/TypeScript**: Use `npm create` (or `pnpm create`, `yarn create`) to scaffold, then add `package.json` scripts if missing.
+     - Or create minimal: `src/index.js` or `src/index.ts` + `package.json` with scripts: `start`, `test`, `lint`, `format`, `build`.
+   - **Python**: Use `uv init` (preferred) or `python -m venv .venv && pip install -e .`; create `pyproject.toml` with `[tool.ruff]`, `[tool.pytest]`, `[tool.black]`; minimal `src/main.py` or package structure.
+   - **Go**: Use `go mod init <module-name>`; create `main.go` in root or `src/`.
+   - **Rust**: Use `cargo new` (creates structure automatically).
+   - **Java (Gradle)**: Use `gradle init` (application type) or create `build.gradle` with `application` plugin and `src/main/java/...`.
+   - **PHP**: Create `composer.json` with `"autoload": {"psr-4": {"App\\": "src/"}}`; minimal `src/index.php`.
+   - **Dart/Flutter**: Use `flutter create` if available; otherwise create `pubspec.yaml` and minimal `lib/main.dart`.
+
+4. Generate **Makefile** (see reference below).
+
+5. Generate **GitHub Actions CI** (`.github/workflows/ci.yml`) that runs `make check`.
+
+6. Generate **.gitignore** with language-appropriate entries.
+
+7. Initialize git and make initial commit (if not already a git repo).
+
+**Important**: The LLM must NOT copy shell scripts from a template directory. All logic must be inline in the generated Makefile or documented in SKILL.md for the user to implement manually.
+
+---
+
+## Makefile Reference (Inline, No External Scripts)
+
+The Makefile should contain targets that directly invoke language-native tools. Example for **Python**:
+
+```makefile
+.PHONY: setup run test lint format build deploy check doctor help
+
+AES_LANGUAGE ?= python
+AES_LINT ?= ruff check
+AES_TEST ?= pytest
+AES_FORMAT ?= ruff format
+AES_BUILD ?= python -m build
+AES_RUN ?= python -m src
+
+export AES_LANGUAGE AES_LINT AES_TEST AES_FORMAT AES_BUILD AES_RUN
+
+setup:
+	@echo "🔧 Setting up $(AES_LANGUAGE) project..."
+	pip install -e .
+
+run:
+	@$(AES_RUN)
+
+test:
+	@$(AES_TEST) --cov=src
+
+lint:
+	@$(AES_LINT)
+
+format:
+	@$(AES_FORMAT)
+
+build:
+	@$(AES_BUILD)
+
+check: docs-check code-check test-check lint-check
+
+docs-check:
+	@# Verify docs/VISION.md, PERSONAS.md, REQUIREMENTS.md, ROADMAP.md exist and have real content
+	@test -f docs/VISION.md && grep -q "Problem" docs/VISION.md
+	@test -f docs/PERSONAS.md && grep -q "User" docs/PERSONAS.md
+	@test -f docs/REQUIREMENTS.md && grep -q "Functional" docs/REQUIREMENTS.md
+	@test -f docs/ROADMAP.md && grep -q "Roadmap" docs/ROADMAP.md
+
+code-check:
+	@# Verify code structure: src/ exists, no TODO in source files
+	@test -d src || test -d lib || test -d app
+	@grep -R "TODO:" src/ tests/ 2>/dev/null || true
+
+test-check:
+	@# Verify test coverage threshold (default 80%)
+	@$(AES_TEST) --cov=src --cov-fail-under=80 || echo "Coverage below 80%"
+
+lint-check:
+	@$(AES_LINT)
+
+doctor:
+	@echo "Language: $(AES_LANGUAGE)"
+	@echo "Lint: $(AES_LINT)"
+	@echo "Test: $(AES_TEST)"
+
+metrics:
+	@# TODO: implement metrics (git log, coverage xml, etc.)
+
+help:
+	@echo "AES Commands:"
+	@echo "  make setup      - Install dependencies"
+	@echo "  make run        - Run the app"
+	@echo "  make test       - Run tests with coverage"
+	@echo "  make lint       - Check code quality"
+	@echo "  make format     - Format code"
+	@echo "  make build      - Build artifacts"
+	@echo "  make check      - Run ALL quality gates"
+	@echo "  make doctor     - System diagnostics"
+```
+
+Adapt the commands for each language using the table above. The `check` target aggregates:
+- `docs-check`: ensure required docs exist and contain substantive content (not just placeholders)
+- `code-check`: check for `TODO:` in source files, verify directory structure
+- `test-check`: run tests with coverage threshold (adjust per project)
+- `lint-check`: run linter in non-fix mode
+
+**No external scripts are called**. All logic is inline in the Makefile.
+
+---
+
 ## Worked Example — Hostile Analysis in Practice
 
 **Task:** *"Add rate limiting to the API."*
 
 ```
 ASSUMPTIONS I'M MAKING:
-- Rate limiting should apply per-IP (not per-user or per-API-key)
+- Rate limiting should apply per-IP (not per-user or per-api-key)
 - 100 req/min is an acceptable default
 - Redis is available for the token bucket
 
@@ -181,38 +346,54 @@ In these cases: make the change, verify locally, done.
 
 ---
 
-## Makefile Quick Reference
+## Makefile Quick Reference (Generated per project)
 
+Common targets (adapt commands to your language):
 ```bash
-make check          # ALL quality gates (docs + code + tests)
-make test           # Tests with coverage
-make lint           # Auto-fix lint issues
-make format         # Format code
-make doctor         # Diagnostics if check fails
-make metrics        # Health dashboard
-make roadmap        # Show task status
-make new-project NAME=myapp LANG=python   # Scaffold new project
+make setup      # Install dependencies
+make run        # Run the application
+make test       # Run tests with coverage
+make lint       # Check/fix lint issues
+make format     # Format code
+make build      # Build artifacts
+make check      # Run ALL quality gates (must pass)
+make doctor     # System diagnostics
+make help       # Show all targets
 ```
 
-Language auto-detected via `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, etc.
-Supported: JavaScript/TypeScript, Python, Go, Rust, Java, PHP, Dart.
+Language auto-detected via presence of configuration files:
+- `package.json` → JavaScript/TypeScript
+- `pyproject.toml` → Python
+- `go.mod` → Go
+- `Cargo.toml` → Rust
+- `pom.xml` or `build.gradle*` → Java
+- `composer.json` → PHP
+- `pubspec.yaml` → Dart/Flutter
 
 ---
 
 ## Installation
 
+AES is a skill for LLM interfaces (Claude Code, OpenCode, Claude Desktop). Copy `SKILL.md` to:
+
 ```bash
-# As skill for LLM interfaces
-make install-claude      # → ~/.claude/skills/aep-aes
-make install-opencode    # → ~/.config/opencode/skills/aep-aes
+# For Claude Code
+~/.claude/skills/aes/SKILL.md
 
-# As CLI tool
-sudo make install-cli    # → /usr/local/bin/aes
-
-# Scaffold a new project from anywhere
-aes new-project NAME=myapp LANG=python DIR=/opt
+# For OpenCode
+~/.config/opencode/skills/aes/SKILL.md
 ```
+
+No external scripts required. The skill is self-contained.
 
 ---
 
-**Version:** 2.1 | **Compatible with:** Claude Code, OpenCode, Claude Desktop
+## Version History
+
+- **3.0** (current) — Self-contained; no external shell scripts; language playbooks inline
+- **2.1** — Script-based implementation with external `scripts/` directory
+- **2.0** — Initial formalization of AES Execution Loop
+
+---
+
+**Version:** 3.0 | **Compatible with:** Claude Code, OpenCode, Claude Desktop

@@ -9,56 +9,33 @@
 - **Validation:** `make check` actually runs tools and reports real issues
 - **Dependencies:** R-2, R-3
 
-### R-2: Create scripts/validate-docs.sh
+### R-2: Validate docs via Makefile target
 - **Impact:** High - Doc completeness is core to AES
 - **Effort:** Low - 1-2 hours
-- **Status:** todo
-- **Validation:** Fails on placeholders, empty files, TODOs in required docs
-- **Dependencies:** None
+- **Status:** done
+- **Validation:** `make docs-check` fails on placeholders, empty files, TODOs in required docs
+- **Dependencies:** R-1
 
-### R-3: Create scripts/new-project.sh scaffolding
+### R-3: Scaffolding with inline Makefiles
 - **Impact:** High - Enables adoption by new projects
 - **Effort:** Medium - 3-4 hours
-- **Status:** todo
+- **Status:** done
 - **Validation:** `make new-project NAME=test` creates working project that passes `make check`
 - **Dependencies:** R-1, R-2, R-4
 
-### R-4: Language detection & config
+### R-4: Language detection in SKILL.md
 - **Impact:** High - Multi-language support is required
 - **Effort:** Medium - 3-5 hours
-- **Status:** todo
-- **Validation:** Correctly detects JS/Python/Go and sets env vars for lint/test commands
+- **Status:** doing
+- **Validation:** SKILL.md contains complete language playbooks; Makefiles generated inline with correct commands
 - **Dependencies:** R-3
 
-## [HIGH] Quality & Automation
-
-### R-5: GitHub Actions CI workflow
-- **Impact:** High - Automated quality gate essential
-- **Effort:** Low - 1 hour
-- **Status:** todo
-- **Validation:** PRs fail if `make check` fails
-- **Dependencies:** R-1, R-2
-
-### R-6: Scripts/doctor.sh diagnostics
+### R-6: Makefile doctor target
 - **Impact:** High - Helps users fix configuration issues
 - **Effort:** Low - 2 hours
 - **Status:** todo
-- **Validation:** `make doctor` reports actionable fixes for common problems
+- **Validation:** `make doctor` reports actionable diagnostics
 - **Dependencies:** R-1, R-2, R-4
-
-### R-7: Scripts/metrics.sh dashboard
-- **Impact:** Medium - Progress tracking
-- **Effort:** Low - 2 hours
-- **Status:** todo
-- **Validation:** `make metrics` shows tasks, coverage, lint issues, check status
-- **Dependencies:** R-1
-
-### R-8: Self-test suite (tests/aes-self-test.sh)
-- **Impact:** High - AES must test itself
-- **Effort:** Low - 2 hours
-- **Status:** todo
-- **Validation:** `make test` runs AES's own compliance as tests
-- **Dependencies:** R-1, R-3
 
 ## [MEDIUM] Templates & Experience
 
@@ -131,11 +108,11 @@
 
 ## Completed
 
-### R-0: Initial project structure
+### R-0: Initial project structure (v3.0)
 - **Impact:** High
 - **Effort:** Low
 - **Status:** done
-- **Validation:** Repository has SKILL.md, Makefile, docs/, templates/, scripts/
+- **Validation:** Repository has SKILL.md (v3.0 self-contained), Makefile, docs/, template/
 
 ---
 

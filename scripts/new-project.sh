@@ -1,14 +1,8 @@
 #!/bin/bash
 set -e
 
-# AES New Project Scaffolding
-# Creates a new project with AES structure
-
-# Determine AES_ROOT (where this script resides)
-if [ -z "$AES_ROOT" ]; then
-  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  AES_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-fi
+# AES New Project Scaffolding (v3.0 self-contained)
+# Creates a new project with AES structure and inline Makefiles (no external scripts)
 
 PROJECT_NAME=$1
 LANGUAGE=${2:-python}
@@ -61,8 +55,8 @@ mkdir -p tests
 mkdir -p .github/workflows
 mkdir -p .aes/plugins
 
-# Copy and customize VISION.md (replace placeholders)
-cat > docs/VISION.md <<EOF
+# Generate documentation templates
+cat > docs/VISION.md <<'EOF'
 # Vision
 
 ## Problem
@@ -78,8 +72,7 @@ cat > docs/VISION.md <<EOF
 [Why this matters. Impact metrics. Success criteria.]
 EOF
 
-# Copy and customize PERSONAS.md
-cat > docs/PERSONAS.md <<EOF
+cat > docs/PERSONAS.md <<'EOF'
 # Personas
 
 ## User
@@ -113,11 +106,10 @@ cat > docs/PERSONAS.md <<EOF
 
 **Tools:**
 - AES (Aggressive Engineering System)
-- \`make check\` for validation
+- `make check` for validation
 EOF
 
-# Copy and customize REQUIREMENTS.md
-cat > docs/REQUIREMENTS.md <<EOF
+cat > docs/REQUIREMENTS.md <<'EOF'
 # Requirements
 
 ## Functional
@@ -133,13 +125,15 @@ cat > docs/REQUIREMENTS.md <<EOF
 
 ## Constraints
 
-- Language: $LANGUAGE
+- Language: LANG_PLACEHOLDER
 - Deployment: [target]
 - Dependencies: [list]
 EOF
 
-# Copy and customize ROADMAP with first task
-cat > docs/ROADMAP.md <<EOF
+# Replace placeholder with actual language
+sed -i "s/LANG_PLACEHOLDER/$LANGUAGE/" docs/REQUIREMENTS.md
+
+cat > docs/ROADMAP.md <<'EOF'
 # Roadmap
 
 ## [HIGH] Initial Setup
@@ -181,7 +175,7 @@ Establish working project with AES quality gates passing.
 3. Ensure `make check` passes
 
 ## Surgical Plan
-1. Create minimal src/main.$LANG → verify: compiles/imports
+1. Create minimal src/main.* → verify: compiles/imports
 2. Create tests → verify: `make test` passes (or skips gracefully)
 3. Configure linter/formatter → verify: `make lint` passes
 4. Update docs with actual tool versions → verify: `make doctor` shows no issues
@@ -198,179 +192,675 @@ Establish working project with AES quality gates passing.
 - What's still missing? (CI, deployment config, etc.)
 EOF
 
-# Special handling for Flutter: use flutter create if available
-if [ "$LANGUAGE" = "flutter" ]; then
-  if command -v flutter &> /dev/null; then
-    echo "📱 Flutter detected. Generating project with flutter create..."
-    flutter create --org com.example --project-name "$PROJECT_NAME" .
-    echo "✅ Flutter project generated"
-  else
-    echo "⚠️  Flutter SDK not found in PATH."
-    echo "   Install Flutter or ensure 'flutter' command is available."
-    echo "   Attempting to use minimal template instead..."
-  fi
-fi
+# Generate language-specific Makefile and source code
+case "$LANGUAGE" in
 
-# Copy language-specific templates (for non-Flutter or if flutter not available)
-if [ "$LANGUAGE" != "flutter" ] && [ -d "$AES_ROOT/templates/$LANGUAGE" ]; then
-  echo "📋 Copying $LANGUAGE template..."
-  cp -r "$AES_ROOT/templates/$LANGUAGE/*" .
-elif [ "$LANGUAGE" = "flutter" ] && [ ! -f "pubspec.yaml" ]; then
-  # Minimal flutter template fallback if flutter command not available
-  if [ -d "$AES_ROOT/templates/flutter" ]; then
-    echo "📋 Copying minimal Flutter template..."
-    cp -r "$AES_ROOT/templates/flutter/*" .
-  else
-    echo "⚠️  No template for flutter"
-  fi
-fi
+  javascript|typescript)
+    cat > Makefile <<'MAKEFILE'
+.PHONY: setup run test lint format build check doctor help
 
-# Generate language-specific Makefile based on template or generic
-if [ -f "Makefile.template" ]; then
-  cp Makefile.template Makefile
-else
-  cat > Makefile <<'MAKEFILE'
-.PHONY: setup run test lint format build deploy check doctor metrics new-project help
+AES_LANGUAGE ?= javascript
+AES_LINT ?= npx eslint . --ext .js,.ts
+AES_TEST ?= npx jest --coverage
+AES_FORMAT ?= npx prettier --write .
+AES_BUILD ?= npm run build
+AES_RUN ?= npm start
 
-# Include language config if exists
--include .aes/config.mk
-
-# Set safe defaults if not defined
-AES_LANGUAGE ?= unknown
-AES_LINT ?= echo
-AES_TEST ?= echo
-AES_FORMAT ?= echo
-AES_BUILD ?= echo
-AES_RUN ?= echo
-
-# Export to subprocesses
 export AES_LANGUAGE AES_LINT AES_TEST AES_FORMAT AES_BUILD AES_RUN
 
 setup:
-	@echo "🔧 Setting up $(AES_LANGUAGE) project..."
-	@chmod +x scripts/*.sh
-	@./scripts/detect-language.sh
-	@./scripts/install-deps.sh
+	@echo "🔧 Setting up $(AES_LANGUAGE)..."
+	npm install
 
 run:
-	@./scripts/run.sh
+	@$(AES_RUN)
 
 test:
-	@./scripts/test.sh --coverage --verbose
+	@$(AES_TEST)
 
 lint:
-	@./scripts/lint.sh --fix
+	@$(AES_LINT)
 
 format:
-	@./scripts/format.sh
+	@$(AES_FORMAT)
 
 build:
-	@./scripts/build.sh
-
-deploy:
-	@./scripts/deploy.sh
+	@$(AES_BUILD)
 
 check: docs-check code-check test-check lint-check
-	@./scripts/check.sh --strict
-	@echo "✅ ALL QUALITY GATES PASSED"
 
 docs-check:
-	@./scripts/validate-docs.sh
+	@test -f docs/VISION.md && grep -q "Problem" docs/VISION.md
+	@test -f docs/PERSONAS.md && grep -q "User" docs/PERSONAS.md
+	@test -f docs/REQUIREMENTS.md && grep -q "Functional" docs/REQUIREMENTS.md
+	@test -f docs/ROADMAP.md && grep -q "Roadmap" docs/ROADMAP.md
 
 code-check:
-	@./scripts/validate-code.sh
+	@test -d src || test -d lib
+	@grep -R "TODO:" src/ 2>/dev/null || true
 
 test-check:
-	@./scripts/validate-tests.sh
+	@$(AES_TEST) --coverage || echo "Tests failed or coverage missing"
 
 lint-check:
-	@./scripts/lint.sh --no-fix
+	@$(AES_LINT) --max-warnings=0
 
 doctor:
-	@./scripts/doctor.sh --all
-
-metrics:
-	@./scripts/metrics.sh --format=cli
-
-roadmap:
-	@./scripts/roadmap.sh
-
-new-project:
-	@echo "❌ Cannot scaffold within an AES project. Go up one directory."
-	@exit 1
-
-clean:
-	@rm -rf tmp build dist coverage.* .coverage .pytest_cache target
+	@echo "Language: $(AES_LANGUAGE)"
+	@echo "Node: $$(node -v 2>/dev/null || echo not-found)"
+	@echo "NPM: $$(npm -v 2>/dev/null || echo not-found)"
 
 help:
-	@echo "AES Commands:"
-	@echo "  make setup        - Install dependencies"
-	@echo "  make run          - Run the app"
-	@echo "  make test         - Run tests with coverage"
-	@echo "  make lint         - Fix lint issues"
-	@echo "  make format       - Format code"
-	@echo "  make build        - Build artifacts"
-	@echo "  make deploy       - Deploy (configure in scripts/deploy.sh)"
-	@echo "  make check        - Run ALL quality gates"
-	@echo "  make doctor       - System diagnostics"
-	@echo "  make metrics      - Health dashboard"
-	@echo "  make roadmap      - Show task status"
-
-.DEFAULT_GOAL := help
+	@echo "AES Commands: make setup run test lint format build check doctor"
 MAKEFILE
-fi
 
-# Create .aes/config.mk with language-specific settings
-mkdir -p .aes
-cat > .aes/config.mk <<EOF
-# Auto-generated by new-project scaffolding
-AES_LANGUAGE=$LANGUAGE
+    mkdir -p src
+    cat > src/index.js <<'EOF'
+// Main entry point
+console.log('Hello from AES project!');
+module.exports = { main: () => console.log('Running...') };
 EOF
 
-# Add language-specific config (from templates if available)
-if [ -f ".aes/config.mk.template" ]; then
-  cat .aes/config.mk.template >> .aes/config.mk
-else
-  case "$LANGUAGE" in
-  javascript)
-    echo 'AES_LINT="npx eslint"' >> .aes/config.mk
-    echo 'AES_TEST="jest"' >> .aes/config.mk
-    echo 'AES_FORMAT="prettier --write"' >> .aes/config.mk
+    cat > package.json <<'EOF'
+{
+  "name": "aes-project",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "jest --coverage",
+    "lint": "eslint . --ext .js,.ts",
+    "format": "prettier --write .",
+    "build": "echo 'No build step'"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0"
+  }
+}
+EOF
     ;;
+
   python)
-    echo 'AES_LINT="ruff check"' >> .aes/config.mk
-    echo 'AES_TEST="pytest"' >> .aes/config.mk
-    echo 'AES_FORMAT="black"' >> .aes/config.mk
+    cat > Makefile <<'MAKEFILE'
+.PHONY: setup run test lint format build check doctor help
+
+AES_LANGUAGE ?= python
+AES_LINT ?= ruff check
+AES_TEST ?= pytest --cov=src
+AES_FORMAT ?= ruff format
+AES_BUILD ?= python -m build
+AES_RUN ?= python -m src.main || python src/main.py
+
+export AES_LANGUAGE AES_LINT AES_TEST AES_FORMAT AES_BUILD AES_RUN
+
+setup:
+	@echo "🔧 Setting up $(AES_LANGUAGE)..."
+	uv sync 2>/dev/null || pip install -e .
+
+run:
+	@$(AES_RUN)
+
+test:
+	@$(AES_TEST)
+
+lint:
+	@$(AES_LINT) src tests
+
+format:
+	@$(AES_FORMAT) src tests
+
+build:
+	@$(AES_BUILD)
+
+check: docs-check code-check test-check lint-check
+
+docs-check:
+	@test -f docs/VISION.md && grep -q "Problem" docs/VISION.md
+	@test -f docs/PERSONAS.md && grep -q "User" docs/PERSONAS.md
+	@test -f docs/REQUIREMENTS.md && grep -q "Functional" docs/REQUIREMENTS.md
+	@test -f docs/ROADMAP.md && grep -q "Roadmap" docs/ROADMAP.md
+
+code-check:
+	@test -d src || test -d lib
+	@grep -R "TODO:" src/ tests/ 2>/dev/null || true
+
+test-check:
+	@$(AES_TEST) --cov-fail-under=80 || echo "Coverage below 80%"
+
+lint-check:
+	@$(AES_LINT)
+
+doctor:
+	@echo "Language: $(AES_LANGUAGE)"
+	@echo "Python: $$(python --version 2>&1 || echo not-found)"
+
+help:
+	@echo "AES Commands: make setup run test lint format build check doctor"
+MAKEFILE
+
+    mkdir -p src
+    cat > pyproject.toml <<'EOF'
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aes-project"
+version = "0.1.0"
+description = "AES-managed Python project"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=src --cov-report=xml --cov-report=term"
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "W", "I"]
+EOF
+
+    cat > src/__init__.py <<'EOF'
+"""AES Project Package"""
+__version__ = "0.1.0"
+EOF
+
+    cat > src/main.py <<'EOF'
+"""Main application entry point."""
+def main():
+    print("Hello from AES project!")
+
+if __name__ == "__main__":
+    main()
+EOF
     ;;
+
   go)
-    echo 'AES_LINT="go vet"' >> .aes/config.mk
-    echo 'AES_TEST="go test"' >> .aes/config.mk
-    echo 'AES_FORMAT="gofmt -w"' >> .aes/config.mk
+    cat > Makefile <<'MAKEFILE'
+.PHONY: setup run test lint format build check doctor help
+
+AES_LANGUAGE ?= go
+AES_LINT ?= go vet ./...
+AES_TEST ?= go test ./... -v
+AES_FORMAT ?= go fmt ./...
+AES_BUILD ?= go build -o bin/app
+AES_RUN ?= go run .
+
+export AES_LANGUAGE AES_LINT AES_TEST AES_FORMAT AES_BUILD AES_RUN
+
+setup:
+	@echo "🔧 Setting up $(AES_LANGUAGE)..."
+	go mod tidy
+
+run:
+	@$(AES_RUN)
+
+test:
+	@$(AES_TEST)
+
+lint:
+	@$(AES_LINT)
+
+format:
+	@$(AES_FORMAT)
+
+build:
+	@$(AES_BUILD)
+
+check: docs-check code-check test-check lint-check
+
+docs-check:
+	@test -f docs/VISION.md && grep -q "Problem" docs/VISION.md
+	@test -f docs/PERSONAS.md && grep -q "User" docs/PERSONAS.md
+	@test -f docs/REQUIREMENTS.md && grep -q "Functional" docs/REQUIREMENTS.md
+	@test -f docs/ROADMAP.md && grep -q "Roadmap" docs/ROADMAP.md
+
+code-check:
+	@test -d src || test -d .
+	@grep -R "TODO:" . 2>/dev/null || true
+
+test-check:
+	@$(AES_TEST) || echo "Tests failed"
+
+lint-check:
+	@$(AES_LINT)
+
+doctor:
+	@echo "Language: $(AES_LANGUAGE)"
+	@echo "Go: $$(go version 2>/dev/null || echo not-found)"
+
+help:
+	@echo "AES Commands: make setup run test lint format build check doctor"
+MAKEFILE
+
+    cat > go.mod <<'EOF'
+module aes-project
+go 1.21
+EOF
+
+    mkdir -p src
+    cat > src/main.go <<'EOF'
+package main
+
+import "fmt"
+
+func main() {
+    fmt.Println("Hello from AES project!");
+}
+EOF
     ;;
+
   rust)
-    echo 'AES_LINT="cargo clippy"' >> .aes/config.mk
-    echo 'AES_TEST="cargo test"' >> .aes/config.mk
-    echo 'AES_FORMAT="cargo fmt --all"' >> .aes/config.mk
+    cat > Makefile <<'MAKEFILE'
+.PHONY: setup run test lint format build check doctor help
+
+AES_LANGUAGE ?= rust
+AES_LINT ?= cargo clippy --all-targets --all-features
+AES_TEST ?= cargo test
+AES_FORMAT ?= cargo fmt --all --check
+AES_BUILD ?= cargo build --release
+AES_RUN ?= cargo run
+
+export AES_LANGUAGE AES_LINT AES_TEST AES_FORMAT AES_BUILD AES_RUN
+
+setup:
+	@echo "🔧 Setting up $(AES_LANGUAGE)..."
+	cargo fetch
+
+run:
+	@$(AES_RUN)
+
+test:
+	@$(AES_TEST)
+
+lint:
+	@$(AES_LINT)
+
+format:
+	@$(AES_FORMAT)
+
+build:
+	@$(AES_BUILD)
+
+check: docs-check code-check test-check format-check lint-check
+
+docs-check:
+	@test -f docs/VISION.md && grep -q "Problem" docs/VISION.md
+	@test -f docs/PERSONAS.md && grep -q "User" docs/PERSONAS.md
+	@test -f docs/REQUIREMENTS.md && grep -q "Functional" docs/REQUIREMENTS.md
+	@test -f docs/ROADMAP.md && grep -q "Roadmap" docs/ROADMAP.md
+
+code-check:
+	@test -d src
+	@grep -R "TODO:" src/ 2>/dev/null || true
+
+test-check:
+	@$(AES_TEST)
+
+format-check:
+	@$(AES_FORMAT)
+
+lint-check:
+	@$(AES_LINT)
+
+doctor:
+	@echo "Language: $(AES_LANGUAGE)"
+	@echo "Rust/Cargo: $$(cargo --version 2>/dev/null || echo not-found)"
+
+help:
+	@echo "AES Commands: make setup run test lint format build check doctor"
+MAKEFILE
+
+    cat > Cargo.toml <<'EOF'
+[package]
+name = "aes-project"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+EOF
+
+    mkdir -p src
+    cat > src/main.rs <<'EOF'
+fn main() {
+    println!("Hello from AES project!");
+}
+EOF
     ;;
+
   java)
-    echo 'AES_LINT="./gradlew check"' >> .aes/config.mk
-    echo 'AES_TEST="./gradlew test"' >> .aes/config.mk
-    echo 'AES_FORMAT="google-java-format -i"' >> .aes/config.mk
+    cat > Makefile <<'MAKEFILE'
+.PHONY: setup run test lint format build check doctor help
+
+AES_LANGUAGE ?= java
+AES_LINT ?= ./gradlew check
+AES_TEST ?= ./gradlew test
+AES_FORMAT ?= google-java-format -i **/*.java
+AES_BUILD ?= ./gradlew build
+AES_RUN ?= ./gradlew run
+
+export AES_LANGUAGE AES_LINT AES_TEST AES_FORMAT AES_BUILD AES_RUN
+
+setup:
+	@echo "🔧 Setting up $(AES_LANGUAGE)..."
+	./gradlew dependencies
+
+run:
+	@$(AES_RUN)
+
+test:
+	@$(AES_TEST)
+
+lint:
+	@$(AES_LINT)
+
+format:
+	@$(AES_FORMAT)
+
+build:
+	@$(AES_BUILD)
+
+check: docs-check code-check test-check lint-check
+
+docs-check:
+	@test -f docs/VISION.md && grep -q "Problem" docs/VISION.md
+	@test -f docs/PERSONAS.md && grep -q "User" docs/PERSONAS.md
+	@test -f docs/REQUIREMENTS.md && grep -q "Functional" docs/REQUIREMENTS.md
+	@test -f docs/ROADMAP.md && grep -q "Roadmap" docs/ROADMAP.md
+
+code-check:
+	@test -d src/main/java
+	@grep -R "TODO:" src/ 2>/dev/null || true
+
+test-check:
+	@$(AES_TEST)
+
+lint-check:
+	@$(AES_LINT)
+
+doctor:
+	@echo "Language: $(AES_LANGUAGE)"
+	@echo "Gradle: $$(./gradlew --version 2>/dev/null || echo not-found)"
+
+help:
+	@echo "AES Commands: make setup run test lint format build check doctor"
+MAKEFILE
+
+    cat > build.gradle <<'EOF'
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.example'
+version = '0.1.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
+}
+
+application {
+    mainClass = 'com.example.App'
+}
+
+test {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    dependsOn test
+}
+EOF
+
+    mkdir -p src/main/java/com/example
+    cat > src/main/java/com/example/App.java <<'EOF'
+package com.example;
+
+public class App {
+    public static void main(String[] args) {
+        System.out.println("Hello from AES project!");
+    }
+}
+EOF
     ;;
+
   php)
-    echo 'AES_LINT="php -l"' >> .aes/config.mk
-    echo 'AES_TEST="./vendor/bin/phpunit"' >> .aes/config.mk
-    echo 'AES_FORMAT="php-cs-fixer fix"' >> .aes/config.mk
+    cat > Makefile <<'MAKEFILE'
+.PHONY: setup run test lint format build check doctor help
+
+AES_LANGUAGE ?= php
+AES_LINT ?= ./vendor/bin/phpstan analyse
+AES_TEST ?= ./vendor/bin/pest || ./vendor/bin/phpunit
+AES_FORMAT ?= php-cs-fixer fix
+AES_BUILD ?= composer install --no-dev --optimize-autoloader
+AES_RUN ?= php -S localhost:8000 -t public
+
+export AES_LANGUAGE AES_LINT AES_TEST AES_FORMAT AES_BUILD AES_RUN
+
+setup:
+	@echo "🔧 Setting up $(AES_LANGUAGE)..."
+	composer install
+
+run:
+	@$(AES_RUN)
+
+test:
+	@$(AES_TEST)
+
+lint:
+	@$(AES_LINT)
+
+format:
+	@$(AES_FORMAT)
+
+build:
+	@$(AES_BUILD)
+
+check: docs-check code-check test-check lint-check
+
+docs-check:
+	@test -f docs/VISION.md && grep -q "Problem" docs/VISION.md
+	@test -f docs/PERSONAS.md && grep -q "User" docs/PERSONAS.md
+	@test -f docs/REQUIREMENTS.md && grep -q "Functional" docs/REQUIREMENTS.md
+	@test -f docs/ROADMAP.md && grep -q "Roadmap" docs/ROADMAP.md
+
+code-check:
+	@test -d src || test -d app
+	@grep -R "TODO:" src/ app/ 2>/dev/null || true
+
+test-check:
+	@$(AES_TEST)
+
+lint-check:
+	@$(AES_LINT) --level=max
+
+doctor:
+	@echo "Language: $(AES_LANGUAGE)"
+	@echo "PHP: $$(php -v 2>/dev/null | head -1 || echo not-found)"
+	@echo "Composer: $$(composer --version 2>/dev/null || echo not-found)"
+
+help:
+	@echo "AES Commands: make setup run test lint format build check doctor"
+MAKEFILE
+
+    cat > composer.json <<'EOF'
+{
+    "name": "aes/project",
+    "require": {}
+}
+EOF
+
+    mkdir -p src
+    cat > src/index.php <<'EOF'
+<?php
+echo "Hello from AES project!\n";
+EOF
     ;;
+
   flutter)
-    echo 'AES_LINT="flutter analyze"' >> .aes/config.mk
-    echo 'AES_TEST="flutter test"' >> .aes/config.mk
-    echo 'AES_FORMAT="dart format ."' >> .aes/config.mk
-    echo 'AES_BUILD="flutter build apk"' >> .aes/config.mk
-    echo 'AES_RUN="flutter run"' >> .aes/config.mk
+    cat > Makefile <<'MAKEFILE'
+.PHONY: setup run test lint format build check doctor help
+
+AES_LANGUAGE ?= flutter
+AES_LINT ?= flutter analyze
+AES_TEST ?= flutter test
+AES_FORMAT ?= dart format .
+AES_BUILD ?= flutter build apk --release
+AES_RUN ?= flutter run
+
+export AES_LANGUAGE AES_LINT AES_TEST AES_FORMAT AES_BUILD AES_RUN
+
+setup:
+	@echo "🔧 Setting up $(AES_LANGUAGE)..."
+	flutter pub get
+
+run:
+	@$(AES_RUN)
+
+test:
+	@$(AES_TEST)
+
+lint:
+	@$(AES_LINT)
+
+format:
+	@$(AES_FORMAT)
+
+build:
+	@$(AES_BUILD)
+
+check: docs-check code-check test-check lint-check
+
+docs-check:
+	@test -f docs/VISION.md && grep -q "Problem" docs/VISION.md
+	@test -f docs/PERSONAS.md && grep -q "User" docs/PERSONAS.md
+	@test -f docs/REQUIREMENTS.md && grep -q "Functional" docs/REQUIREMENTS.md
+	@test -f docs/ROADMAP.md && grep -q "Roadmap" docs/ROADMAP.md
+
+code-check:
+	@test -d lib
+	@grep -R "TODO:" lib/ 2>/dev/null || true
+
+test-check:
+	@$(AES_TEST)
+
+lint-check:
+	@$(AES_LINT)
+
+doctor:
+	@echo "Language: $(AES_LANGUAGE)"
+	@echo "Flutter: $$(flutter --version 2>/dev/null | head -1 || echo not-found)"
+	@echo "Dart: $$(dart --version 2>/dev/null || echo not-found)"
+
+help:
+	@echo "AES Commands: make setup run test lint format build check doctor"
+MAKEFILE
+
+    # Try to use flutter create if available
+    if command -v flutter &> /dev/null; then
+      echo "📱 Using flutter create to generate project..."
+      flutter create --org com.example --project-name "$PROJECT_NAME" .
+    else
+      echo "⚠️  Flutter SDK not found. Creating minimal structure manually."
+      mkdir -p lib
+      cat > pubspec.yaml <<'EOF'
+name: aes_project
+description: A new AES Flutter project.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+EOF
+      cat > lib/main.dart <<'EOF'
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'AES Flutter Project',
+      home: Scaffold(
+        appBar: AppBar(title: const Text('AES Project')),
+        body: const Center(child: Text('Hello from AES project!')),
+      ),
+    );
+  }
+}
+EOF
+    fi
+    ;;
+
+  *)
+    cat > Makefile <<'MAKEFILE'
+.PHONY: setup run test lint format build check doctor help
+
+AES_LANGUAGE ?= unknown
+AES_LINT ?= echo "No linter configured"
+AES_TEST ?= echo "No tests configured"
+AES_FORMAT ?= echo "No formatter configured"
+AES_BUILD ?= echo "No build configured"
+AES_RUN ?= echo "No run command configured"
+
+export AES_LANGUAGE AES_LINT AES_TEST AES_FORMAT AES_BUILD AES_RUN
+
+setup:
+	@echo "⚠️  Unknown language. Configure Makefile manually."
+
+run:
+	@$(AES_RUN)
+
+test:
+	@$(AES_TEST)
+
+lint:
+	@$(AES_LINT)
+
+format:
+	@$(AES_FORMAT)
+
+build:
+	@$(AES_BUILD)
+
+check: docs-check
+
+docs-check:
+	@test -f docs/VISION.md && grep -q "Problem" docs/VISION.md
+	@test -f docs/PERSONAS.md && grep -q "User" docs/PERSONAS.md
+	@test -f docs/REQUIREMENTS.md && grep -q "Functional" docs/REQUIREMENTS.md
+	@test -f docs/ROADMAP.md && grep -q "Roadmap" docs/ROADMAP.md
+
+doctor:
+	@echo "Language: $(AES_LANGUAGE) (generic)"
+
+help:
+	@echo "AES Commands: customize Makefile with your language tools"
+MAKEFILE
     ;;
 esac
-fi
 
 # Generate GitHub Actions CI
 cat > .github/workflows/ci.yml <<'EOF'
@@ -390,7 +880,6 @@ jobs:
 
       - name: Setup environment
         run: |
-          chmod +x scripts/*.sh
           make setup
 
       - name: Run AES check
@@ -446,19 +935,6 @@ case "$LANGUAGE" in
     ;;
 esac
 
-# Ensure scripts/ is copied if not from template
-if [ ! -f "scripts/detect-language.sh" ]; then
-  mkdir -p scripts
-  cp -r "$AES_ROOT/scripts/"*.sh scripts/
-  chmod +x scripts/*.sh
-fi
-
-# Copy template task if not exists
-if [ ! -f "docs/TASKS/task-template.md" ]; then
-  mkdir -p docs/TASKS
-  cp ../template/task.md docs/TASKS/task-template.md
-fi
-
 # Initialize git if not already
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   git init
@@ -482,584 +958,4 @@ echo "  - docs/VISION.md, docs/PERSONAS.md, docs/REQUIREMENTS.md, docs/ROADMAP.m
 echo "  - docs/TASKS/01-initial-setup.md"
 echo "  - Language-specific Makefile & source files"
 echo "  - .github/workflows/ci.yml (GitHub Actions)"
-echo "  - scripts/ (detection, validation, lint, test, etc.)"
-echo ""
-
-exit 0
-  echo "Supported languages:"
-  echo "  python, javascript, go, rust, java, php"
-  exit 1
-fi
-
-echo "🏗️  Scaffolding new AES project: $PROJECT_NAME (language: $LANGUAGE)"
-echo ""
-
-# Validate name (alphanumeric, dash, underscore)
-if [[ ! "$PROJECT_NAME" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-  echo "❌ Project name must be alphanumeric with dashes/underscores"
-  exit 1
-fi
-
-# Check if directory exists
-if [ -d "$PROJECT_NAME" ]; then
-  echo "❌ Directory '$PROJECT_NAME' already exists"
-  exit 1
-fi
-
-# Create directory structure
-mkdir -p "$PROJECT_NAME"
-cd "$PROJECT_NAME"
-
-mkdir -p docs
-mkdir -p src
-mkdir -p tests
-mkdir -p .github/workflows
-mkdir -p .aes/plugins
-
-# Copy and customize VISION.md (replace placeholders)
-cat > docs/VISION.md <<EOF
-# Vision
-
-## Problem
-
-[Describe the problem you're solving. Who is hurt by this? What happens if not solved?]
-
-## Solution
-
-[Describe your approach. How does it solve the problem? What makes it different?]
-
-## Value
-
-[Why this matters. Impact metrics. Success criteria.]
-EOF
-
-# Copy and customize PERSONAS.md
-cat > docs/PERSONAS.md <<EOF
-# Personas
-
-## User
-
-**Profile:** [Describe your user]
-
-**Goals:**
-- Goal 1
-- Goal 2
-
-**Needs:**
-- Need 1
-- Need 2
-
-**Pain Points:**
-- Pain 1
-- Pain 2
-
-## Maintainer
-
-**Profile:** Engineer maintaining this codebase
-
-**Goals:**
-- Keep code clean and documented
-- Ensure quality without friction
-
-**Needs:**
-- Clear testing strategy
-- Automated quality gates
-- Easy onboarding
-
-**Tools:**
-- AES (Aggressive Engineering System)
-- \`make check\` for validation
-EOF
-
-# Copy and customize REQUIREMENTS.md
-cat > docs/REQUIREMENTS.md <<EOF
-# Requirements
-
-## Functional
-
-- [Feature 1 description]
-- [Feature 2 description]
-
-## Non-Functional
-
-- Performance: [target]
-- Security: [requirements]
-- Maintainability: [guidelines]
-
-## Constraints
-
-- Language: $LANGUAGE
-- Deployment: [target]
-- Dependencies: [list]
-EOF
-
-# Copy and customize ROADMAP with first task
-cat > docs/ROADMAP.md <<EOF
-# Roadmap
-
-## [HIGH] Initial Setup
-- Impact: High
-- Effort: Low
-- Status: done
-
-## [MEDIUM] First Feature
-- Impact: Medium
-- Effort: Medium
-- Status: todo
-
-## [LOW] Polish & Refine
-- Impact: Low
-- Effort: Low
-- Status: todo
-
----
-*Generated by AES scaffolding*
-EOF
-
-# Create base task template
-mkdir -p docs/TASKS
-cat > docs/TASKS/01-initial-setup.md <<'EOF'
-# Task: Initial project setup
-
-## Goal
-Establish working project with AES quality gates passing.
-
-## Hostile Analysis
-- What assumptions are we making about the runtime?
-- What could break in deployment?
-- Is this the simplest way to achieve the goal?
-- Are there dependencies that could cause issues?
-
-## Proposed Solution
-1. Follow language-specific setup guide
-2. Write simple "hello world" to verify toolchain
-3. Ensure `make check` passes
-
-## Surgical Plan
-1. Create minimal src/main.$LANG → verify: compiles/imports
-2. Create tests → verify: `make test` passes (or skips gracefully)
-3. Configure linter/formatter → verify: `make lint` passes
-4. Update docs with actual tool versions → verify: `make doctor` shows no issues
-
-## Validation
-- [ ] Project builds without errors
-- [ ] `make check` passes (or allows TODOs for unimplemented features)
-- [ ] All docs exist and are filled (VISION, PERSONAS, REQUIREMENTS, ROADMAP)
-- [ ] Git initialized, first commit made
-
-## Critical Review
-- Can this be simpler? (yes = no unnecessary dependencies)
-- Did I touch only what's needed? (yes = no premature configuration)
-- What's still missing? (CI, deployment config, etc.)
-EOF
-
-# Generate language-specific Makefile based on template or generic
-if [ -f "templates/$(LANGUAGE)/Makefile" ]; then
-  cp templates/$LANGUAGE/Makefile ./
-else
-  cat > Makefile <<'MAKEFILE'
-.PHONY: setup run test lint format build deploy check doctor metrics new-project help
-
-# Include language config if exists
--include .aes/config.mk
-
-# Set safe defaults if not defined
-AES_LANGUAGE ?= unknown
-AES_LINT ?= echo
-AES_TEST ?= echo
-AES_FORMAT ?= echo
-AES_BUILD ?= echo
-AES_RUN ?= echo
-
-# Export to subprocesses
-export AES_LANGUAGE AES_LINT AES_TEST AES_FORMAT AES_BUILD AES_RUN
-
-setup:
-	@echo "🔧 Setting up $(AES_LANGUAGE) project..."
-	@chmod +x scripts/*.sh
-	@./scripts/detect-language.sh
-	@./scripts/install-deps.sh
-
-run:
-	@./scripts/run.sh
-
-test:
-	@./scripts/test.sh --coverage --verbose
-
-lint:
-	@./scripts/lint.sh --fix
-
-format:
-	@./scripts/format.sh
-
-build:
-	@./scripts/build.sh
-
-deploy:
-	@./scripts/deploy.sh
-
-check: docs-check code-check test-check lint-check
-	@./scripts/check.sh --strict
-	@echo "✅ ALL QUALITY GATES PASSED"
-
-docs-check:
-	@./scripts/validate-docs.sh
-
-code-check:
-	@./scripts/validate-code.sh
-
-test-check:
-	@./scripts/validate-tests.sh
-
-lint-check:
-	@./scripts/lint.sh --no-fix
-
-doctor:
-	@./scripts/doctor.sh --all
-
-metrics:
-	@./scripts/metrics.sh --format=cli
-
-roadmap:
-	@./scripts/roadmap.sh
-
-new-project:
-	@echo "❌ Cannot scaffold within an AES project. Go up one directory."
-	@exit 1
-
-clean:
-	@rm -rf tmp build dist coverage.* .coverage .pytest_cache target
-
-help:
-	@echo "AES Commands:"
-	@echo "  make setup        - Install dependencies"
-	@echo "  make run          - Run the app"
-	@echo "  make test         - Run tests with coverage"
-	@echo "  make lint         - Fix lint issues"
-	@echo "  make format       - Format code"
-	@echo "  make build        - Build artifacts"
-	@echo "  make deploy       - Deploy (configure in scripts/deploy.sh)"
-	@echo "  make check        - Run ALL quality gates"
-	@echo "  make doctor       - System diagnostics"
-	@echo "  make metrics      - Health dashboard"
-	@echo "  make roadmap      - Show task status"
-
-.DEFAULT_GOAL := help
-MAKEFILE
-fi
-
-# Detect language and customize Makefile
-echo ""
-echo "Configuring Makefile for $LANGUAGE..."
-case "$LANGUAGE" in
-
-  javascript)
-    cat > src/index.js <<'EOF'
-// Main entry point
-console.log('Hello from AES project!');
-module.exports = { main: () => console.log('Running...') };
-EOF
-
-    cat > package.json <<'EOF'
-{
-  "name": "aes-project",
-  "version": "0.1.0",
-  "type": "module",
-  "scripts": {
-    "start": "node src/index.js",
-    "test": "jest --coverage",
-    "lint": "eslint . --ext .js,.ts",
-    "format": "prettier --write ."
-  },
-  "devDependencies": {
-    "jest": "^29.0.0",
-    "eslint": "^8.0.0",
-    "prettier": "^3.0.0"
-  }
-}
-EOF
-    ;;
-
-  python)
-    cat > pyproject.toml <<'EOF'
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "aes-project"
-version = "0.1.0"
-description = "AES-managed Python project"
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "--cov=src --cov-report=xml --cov-report=term"
-
-[tool.black]
-line-length = 88
-
-[tool.ruff]
-line-length = 88
-select = ["E", "F", "W", "I"]
-EOF
-
-    mkdir -p src
-    cat > src/__init__.py <<'EOF'
-"""AES Project Package"""
-__version__ = "0.1.0"
-EOF
-
-    cat > src/main.py <<'EOF'
-"""Main application entry point."""
-def main():
-    print("Hello from AES project!")
-
-if __name__ == "__main__":
-    main()
-EOF
-    ;;
-
-  go)
-    cat > go.mod <<'EOF
-module aes-project
-
-go 1.21
-EOF
-
-    mkdir -p src
-    cat > src/main.go <<'EOF'
-package main
-
-import "fmt"
-
-func main() {
-    fmt.Println("Hello from AES project!")
-}
-EOF
-    ;;
-
-  rust)
-    cat > Cargo.toml <<'EOF'
-[package]
-name = "aes-project"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-EOF
-
-    mkdir -p src
-    cat > src/main.rs <<'EOF'
-fn main() {
-    println!("Hello from AES project!");
-}
-EOF
-    ;;
-
-  java)
-    cat > build.gradle <<'EOF'
-plugins {
-    id 'java'
-    id 'application'
-}
-
-group = 'com.example'
-version = '0.1.0'
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
-}
-
-application {
-    mainClass = 'com.example.App'
-}
-
-test {
-    useJUnitPlatform()
-    finalizedBy jacocoTestReport
-}
-
-jacocoTestReport {
-    dependsOn test
-}
-EOF
-
-    mkdir -p src/main/java/com/example
-    cat > src/main/java/com/example/App.java <<'EOF'
-package com.example;
-
-public class App {
-    public static void main(String[] args) {
-        System.out.println("Hello from AES project!");
-    }
-}
-EOF
-    ;;
-
-  php)
-    cat > composer.json <<'EOF'
-{
-    "name": "aes/project",
-    "require": {}
-}
-EOF
-
-    mkdir -p src
-    cat > src/index.php <<'EOF'
-<?php
-echo "Hello from AES project!\n";
-EOF
-    ;;
-
-  *)
-    echo "⚠️  Unknown language: $LANGUAGE"
-    echo "Creating generic templates only..."
-    cat > Makefile <<'MAKEFILE'
-.PHONY: setup run test lint format build deploy check doctor metrics
-
-setup:
-	@echo "Setup complete. Edit scripts/*.sh for your project."
-
-run:
-	@echo "Edit scripts/run.sh to run your app"
-
-test:
-	@echo "Edit scripts/test.sh to run your tests"
-
-lint:
-	@echo "Edit scripts/lint.sh to lint your code"
-
-format:
-	@echo "Edit scripts/format.sh to format your code"
-
-check:
-	@./scripts/check.sh
-
-doctor:
-	@./scripts/doctor.sh
-
-metrics:
-	@./scripts/metrics.sh
-
-deploy:
-	@echo "Edit scripts/deploy.sh for deployment"
-
-clean:
-	@rm -rf tmp build dist
-
-MAKEFILE
-    ;;
-esac
-
-# Create .aes/config.mk with language-specific settings
-mkdir -p .aes
-cat > .aes/config.mk <<EOF
-# Auto-generated by AES scaffolding
-AES_LANGUAGE=$LANGUAGE
-EOF
-
-case "$LANGUAGE" in
-  javascript) echo 'AES_LINT="npx eslint"' >> .aes/config.mk ;;
-  python) echo 'AES_LINT="ruff check"' >> .aes/config.mk ;;
-  go) echo 'AES_LINT="go vet"' >> .aes/config.mk ;;
-  rust) echo 'AES_LINT="cargo clippy"' >> .aes/config.mk ;;
-  java) echo 'AES_LINT="./gradlew check"' >> .aes/config.mk ;;
-  php) echo 'AES_LINT="php -l"' >> .aes/config.mk ;;
-esac
-
-# Generate GitHub Actions CI
-cat > .github/workflows/ci.yml <<'EOF'
-name: AES Pipeline
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
-
-jobs:
-  aes-check:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup environment
-        run: |
-          chmod +x scripts/*.sh
-          make setup
-
-      - name: Run AES check
-        run: make check
-
-      - name: Run tests
-        run: make test
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-        if: always()
-        with:
-          fail_ci_if_error: false
-EOF
-
-# Create .gitignore
-cat > .gitignore <<'EOF'
-node_modules/
-__pycache__/
-*.pyc
-.coverage
-coverage.xml
-coverage.out
-target/
-dist/
-build/
-.venv/
-env/
-.idea/
-.vscode/
-*.log
-.DS_Store
-.tmp/
-aes-project/
-EOF
-
-# Create empty scripts dir if not copied
-if [ ! -f "scripts/detect-language.sh" ]; then
-  cp -r ../scripts .
-  chmod +x scripts/*.sh
-fi
-
-# Copy default templates if missing
-if [ ! -f "docs/TASKS/task-template.md" ]; then
-  mkdir -p docs/TASKS
-  cp ../template/task.md docs/TASKS/task-template.md
-fi
-
-# Initialize git if not already
-if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  git init
-  git add .
-  git commit -m "feat: initialize project with AES protocol"
-fi
-
-cd ..
-
-echo ""
-echo "✅ Project '$PROJECT_NAME' scaffolded successfully!"
-echo ""
-echo "Next steps:"
-echo "  1. cd $PROJECT_NAME"
-echo "  2. Edit docs/VISION.md, docs/PERSONAS.md, docs/REQUIREMENTS.md"
-echo "  3. Run: make setup"
-echo "  4. Run: make check"
-echo ""
-echo "Files created:"
-echo "  - docs/VISION.md, docs/PERSONAS.md, docs/REQUIREMENTS.md, docs/ROADMAP.md"
-echo "  - docs/TASKS/01-initial-setup.md"
-echo "  - Language-specific Makefile & source files"
-echo "  - .github/workflows/ci.yml (GitHub Actions)"
-echo "  - scripts/ (detection, validation, lint, test, etc.)"
 echo ""

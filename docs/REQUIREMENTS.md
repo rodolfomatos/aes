@@ -75,38 +75,32 @@ The protocol enforces the 4 principles:
 
 ### NFR-1: Simplicity
 - No unnecessary abstractions
-- Scripts in bash for portability
 - Minimal dependencies (runs on any Unix-like system)
-- Clear, readable configuration
+- Clear, readable configuration in Makefile (no external scripts)
 
 ### NFR-2: Maintainability
-- Self-documenting code in scripts
-- Each script does ONE thing
-- Easy to extend for new languages
+- Self-documenting code (readable Makefiles and inline scaffolding)
+- Easy to extend for new languages (add Makefile snippet in SKILL.md)
 - Can be used to build AES itself (dogfooding)
 
 ### NFR-3: Performance
 - `make check` completes in <30s for typical project
-- Language detection is instantaneous
+- Language detection is instantaneous (via file existence)
 - Scaffolding generates full project in <5s
 
 ### NFR-4: Reliability
-- Check script must never false-positive (no "works on my machine")
-- All scripts have exit codes
+- `make check` must be deterministic (no false positives)
+- All commands have proper exit codes
 - CI must be deterministic
 
 ### NFR-5: Extensibility
-- Plugin system in `.aes/plugins/` for custom hooks
-- Language-specific overrides via `templates/[lang]/`
+- Plugin system in `.aes/plugins/` for custom hooks (optional)
 - Configurable thresholds (coverage %, lint rules) via `.aes/config`
+- New languages can be added by updating SKILL.md Makefile reference
 
 ### NFR-6: Observability
-- `make metrics` provides JSON/CLI output of:
-  - Tasks completed vs total
-  - Test coverage %
-  - Lint issues count
-  - Last check status
-  - Time since last docs update
+- `make doctor` provides basic diagnostics
+- `make metrics` optional (not required in v3.0)
 
 ## Constraints
 
