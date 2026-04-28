@@ -22,39 +22,66 @@ Install the skill globally:
 
 ```bash
 # From the AES repository root
-make install-claude      # Claude Code
+make install-claude      # Install for Claude Code only → ~/.claude/skills/aes
 # or
-make install-opencode    # OpenCode
+make install-opencode    # Install for OpenCode only → ~/.config/opencode/skills/aes
+# or
+make install-all         # Install for both
 ```
 
 Then in your LLM interface:
 ```
-/load aep-aes
+/load aes
 ```
 
 The skill will activate AES protocol for the session.
 
-### As a Project Template
+### Via CLI Wrapper (Recommended)
 
-Create a new project with AES structure:
+Install the `aes` command globally:
 
 ```bash
-# From anywhere
-make new-project NAME=myapp LANGUAGE=python
-# or
-./scripts/new-project.sh myapp javascript
+# Install CLI wrapper to /usr/local/bin/aes
+sudo make install-cli
+
+# Or copy manually:
+# sudo cp bin/aes /usr/local/bin/aes
+# sudo chmod +x /usr/local/bin/aes
+```
+
+Now you can use `aes` from anywhere:
+
+```bash
+aes new-project NAME=myapp LANG=python            # Creates ./myapp
+aes new-project NAME=myapp LANG=python DIR=/opt   # Creates /opt/myapp
+aes install --claude                               # Install skill
+aes list                                           # Show installations
+```
+
+### As a Project Template
+
+Create a new project directly:
+
+```bash
+# Create in current directory
+make new-project NAME=myapp LANG=python
+
+# Create in specific directory
+make new-project NAME=myapp LANG=python DIR=/opt
+
+# Or use the script directly
+./scripts/new-project.sh myapp javascript ~/projects
 ```
 
 This generates:
 - Complete directory structure with docs/
 - Language-specific Makefile
-- CI/CD workflow (.github/workflows/ci.yml)
 - Pre-configured lint/test/format scripts
 - Task templates
 
 Then:
 ```bash
-cd myapp
+cd /opt/myapp  # or wherever you created it
 make setup        # Install dependencies
 make check        # Validate everything
 make doctor       # Diagnostics if needed
@@ -148,10 +175,11 @@ See `tests/aes-self-test.sh` for the test suite.
 
 ```bash
 # Install as skill for LLM interfaces
-make install-claude      # ~/.claude/skills/aep-aes
-make install-opencode    # ~/.config/opencode/skills/aep-aes
+make install-claude      # ~/.claude/skills/aes
+make install-opencode    # ~/.config/opencode/skills/aes
+make install-all         # Both locations
 make list-skill          # Show installed locations
-make uninstall-skill     # Remove
+make uninstall-skill     # Remove (or: ./scripts/install-skill.sh --uninstall)
 ```
 
 ## Extending AES

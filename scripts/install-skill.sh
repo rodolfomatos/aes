@@ -7,8 +7,8 @@ set -e
 CLAUDE_SKILLS_DIR="${CLAUDE_SKILLS_DIR:-$HOME/.claude/skills}"
 OPENCODE_SKILLS_DIR="${OPENCODE_SKILLS_DIR:-$HOME/.config/opencode/skills}"
 
-TARGET_CLAUDE="$CLAUDE_SKILLS_DIR/aep-aes"
-TARGET_OPENCODE="$OPENCODE_SKILLS_DIR/aep-aes"
+TARGET_CLAUDE="$CLAUDE_SKILLS_DIR/aes"
+TARGET_OPENCODE="$OPENCODE_SKILLS_DIR/aes"
 
 INSTALL_CLAUDE=0
 INSTALL_OPENCODE=0
@@ -155,20 +155,20 @@ install_skill() {
   echo "✅ Installed to $target_dir"
   echo ""
   echo "Usage instructions:"
-  echo "  In Claude Code: /load aep-aes"
-  echo "  In OpenCode: /skill load aep-aes"
+  echo "  In Claude Code: /load aes"
+  echo "  In OpenCode: /skill aes"
   echo ""
   echo "The skill will be available in: $target_name"
 }
 
 # Install for Claude Code
 if [ $INSTALL_CLAUDE -eq 1 ]; then
-  install_skill "$TARGET_CLAUDE" "aep-aes"
+  install_skill "$TARGET_CLAUDE" "aes"
 fi
 
 # Install for OpenCode
 if [ $INSTALL_OPENCODE -eq 1 ]; then
-  install_skill "$TARGET_OPENCODE" "aep-aes"
+  install_skill "$TARGET_OPENCODE" "aes"
 fi
 
 echo ""
@@ -178,8 +178,8 @@ echo "To verify, in your LLM interface type:"
 echo "  Claude Code: /list-skills"
 echo "  OpenCode: /skills"
 echo ""
-echo "You should see 'aep-aes' in the list."
+echo "You should see 'aes' in the list."
 echo ""
-echo "To use: /skill aep-aes or /load aep-aes"
+echo "To use: /skill aes or /load aes"
 echo ""
 echo "To uninstall: $0 --uninstall"
