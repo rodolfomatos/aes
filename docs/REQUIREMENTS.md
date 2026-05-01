@@ -66,10 +66,20 @@ Generated projects include `.github/workflows/ci.yml` that:
 
 ### FR-8: Karpathy Compliance
 The protocol enforces the 4 principles:
-1. Think Before Coding - via mandatory hostlie analysis
+1. Think Before Coding - via mandatory hostile analysis
 2. Simplicity First - via "could this be simpler?" review
 3. Surgical Changes - via "only touch what's necessary" rule
 4. Goal-Driven - via verifiable checkpoints in execution plan
+
+### FR-9: Design System Compliance (Frontend)
+When generating UI code, AES enforces:
+- **No emojis in source code** — use Lucide/Heroicons/SVG instead
+- **Professional UI aesthetic** — clean, minimal, high contrast
+- **Color palette** — dark (#0a0a0a bg), surface (#171717), accent (#22c55e)
+- **Typography** — Inter font stack, consistent scale
+- **Spacing** — 4px base unit, 8/16/24/48px increments
+
+Generated projects include `docs/DESIGN.md` with full specification.
 
 ## Non-Functional Requirements
 

@@ -1,12 +1,16 @@
 ---
 name: aes
+summary: >
+  Aggressive Engineering Protocol (AEP) — Use for any non-trivial engineering task:
+  tasks touching 3+ files, architectural decisions, new dependencies, new features,
+  refactors, or anything where a wrong decision is costly.
 description: >
   Aggressive Engineering Protocol (AEP) — Use for any non-trivial engineering task:
   tasks touching 3+ files, architectural decisions, new dependencies, new features,
-  refactors, or anything where a wrong decision is costly. Enforces hostile analysis,
-  documentation-first, surgical changes, and Karpathy's 4 principles.
+  refactors, or anything where a wrong decision is costly.
   Do NOT use for: typo fixes, one-liners, throwaway scripts, or trivial config changes.
 compatibility: claude-code, opencode, claude-desktop
+tools: []
 metadata:
   author: AES Maintainers
   version: 3.0
@@ -174,6 +178,94 @@ No external scripts are used. Detection is based on presence of canonical files:
 
 ---
 
+## Design System (Frontend)
+
+When generating UI code (React, Vue, HTML/CSS, Flutter, etc.), **always** follow these rules:
+
+### FR-D1: No Emojis in Source Code
+
+**Never use emoji characters in source files:**
+- `.tsx`, `.jsx`, `.vue`, `.html`, `.css`, `.scss`, `.dart`, `.swift`, `.kt`
+
+**Use instead:**
+- Lucide icons (`lucide-react`, `lucide-vue-next`)
+- Heroicons (`@heroicons/react`, `@heroicons/vue`)
+- Inline SVG
+- Text labels (e.g., "Submit" instead of "Submit")
+
+**Allowed:** emoji in comments, markdown docs, README files.
+
+### FR-D2: Professional UI Aesthetic
+
+Generate interfaces that are:
+- **Clean and minimal** — content over decoration
+- **High contrast** — readable text on all backgrounds
+- **Consistent** — same patterns repeated throughout
+- **Purposeful** — every element serves a function
+
+**Color palette for dark interfaces:**
+| Role | Hex |
+|------|-----|
+| Background | `#0a0a0a` |
+| Surface | `#171717` |
+| Border | `#262626` |
+| Text primary | `#fafafa` |
+| Text muted | `#737373` |
+| Accent | `#22c55e` (green) |
+| Destructive | `#ef4444` (red) |
+
+**Color palette for light interfaces:**
+| Role | Hex |
+|------|-----|
+| Background | `#ffffff` |
+| Surface | `#f5f5f5` |
+| Border | `#e5e5e5` |
+| Text primary | `#171717` |
+| Text muted | `#737373` |
+| Accent | `#22c55e` |
+| Destructive | `#ef4444` |
+
+### FR-D3: Typography
+
+Use **Inter** as primary font (fallback: system sans-serif):
+```css
+font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+```
+
+**Scale:**
+| Element | Size | Weight |
+|---------|------|--------|
+| Display | 32px | 700 |
+| H1 | 24px | 600 |
+| H2 | 20px | 600 |
+| Body | 14px | 400 |
+| Small | 12px | 400 |
+| Mono | SF Mono, "Fira Code" | 400 |
+
+### FR-D4: Spacing
+
+4px base unit. Common values:
+- `4px` — tight gaps within components
+- `8px` / `16px` — component padding
+- `16px` / `24px` — between elements
+- `24px` / `32px` — section separation
+- `48px` / `64px` — major breaks
+
+### FR-D5: Design.md Generation
+
+For projects with UI components, generate `docs/DESIGN.md` based on the template in `docs/DESIGN.md` of this repository. Include:
+- Visual theme and philosophy
+- Color palette with hex codes and semantic roles
+- Typography scale and font stack
+- Component patterns (buttons, inputs, cards)
+- Spacing system
+- Do's and Don'ts
+
+### Reference
+See [awesome-design-md](https://github.com/voltagent/awesome-design-md) for curated design system examples from real production sites (Linear, Vercel, Stripe, etc.).
+
+---
+
 ## Scaffolding Playbook (Self-Contained)
 
 When creating a new project (`make new-project NAME=myapp LANG=python`), the LLM must:
@@ -186,6 +278,7 @@ When creating a new project (`make new-project NAME=myapp LANG=python`), the LLM
    │   ├── PERSONAS.md
    │   ├── REQUIREMENTS.md
    │   ├── ROADMAP.md
+   │   ├── DESIGN.md          # Design system spec for UI projects
    │   └── TASKS/
    ├── src/ (or language-specific equivalent)
    ├── tests/ (or language-specific equivalent)

@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y shellcheck
+
+      - name: Install shfmt
+        run: |
+          which shfmt > /dev/null 2>&1 || (
+            sudo apt-get update -qq
+            sudo apt-get install -y shfmt
+          )
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh bin/aes
+
+      - name: Run make check (all quality gates)
+        run: make check
+        env:
+          SHELLCHECK_OPTS: -x -S error
+
+      - name: Run self-test suite
+        run: bash tests/aes-self-test.sh
+
+      - name: Run shellcheck on all scripts
+        run: |
+          find scripts bin -name "*.sh" -exec shellcheck {} + || {
+            echo "shellcheck found issues"
+            exit 1
+          }
+
+      - name: Check shell script formatting
+        run: |
+          if command -v shfmt > /dev/null 2>&1; then
+            unformatted=$(find scripts bin -name "*.sh" | xargs shfmt -l 2>/dev/null || true)
+            if [ -n "$unformatted" ]; then
+              echo "Unformatted shell scripts:"
+              echo "$unformatted"
+              echo "Run: make format"
+              exit 1
+            fi
+          fi
+
+      - name: Validate docs are complete
+        run: ./scripts/validate-docs.sh
+
+      - name: Validate code structure
+        run: ./scripts/validate-code.sh
+
+      - name: Validate test coverage
+        run: ./scripts/validate-tests.sh

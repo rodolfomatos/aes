@@ -1,5 +1,8 @@
 # AES — Aggressive Engineering System
 
+[![CI](https://github.com/aes-project/aes/actions/workflows/ci.yml/badge.svg)](https://github.com/aes-project/aes/actions/workflows/ci.yml)
+[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A disciplined engineering protocol for LLM-assisted development.
 
 ## What this is
@@ -170,6 +173,46 @@ make metrics    # Health dashboard
 ```
 
 See `tests/aes-self-test.sh` for the test suite.
+
+## CI/CD
+
+AES ships with a GitHub Actions workflow that runs on every push and pull request:
+
+```yaml
+# .github/workflows/ci.yml (included in scaffolded projects)
+name: CI
+on: [push, pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make check
+```
+
+### What CI runs
+
+| Check | Command | Failure Condition |
+|-------|---------|-------------------|
+| Quality gates | `make check` | Any gate fails |
+| Self-test suite | `make test` | Test script exits non-zero |
+| Shell linting | `shellcheck scripts/*.sh bin/*` | shellcheck finds errors |
+| Formatting | `shfmt -l scripts/ bin/` | Any file needs formatting |
+
+### CI for AES itself
+
+AES uses GitHub Actions to validate itself (dogfooding):
+
+```bash
+# Status: https://github.com/aes-project/aes/actions
+```
+
+Every push to `main` runs:
+1. `make check` — all quality gates
+2. `make test` — self-test suite
+3. `shellcheck` — bash script linting
+4. `shfmt` — formatting validation
+5. Individual validation scripts (docs, code, tests)
 
 ## Installation Options
 

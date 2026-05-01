@@ -33,9 +33,49 @@
 ### R-6: Makefile doctor target
 - **Impact:** High - Helps users fix configuration issues
 - **Effort:** Low - 2 hours
-- **Status:** todo
+- **Status:** done
 - **Validation:** `make doctor` reports actionable diagnostics
 - **Dependencies:** R-1, R-2, R-4
+
+### R-7: GitHub Actions CI/CD
+- **Impact:** High - Automated validation on every push/PR
+- **Effort:** Low - 2 hours
+- **Status:** done
+- **Validation:** `.github/workflows/ci.yml` runs `make check`, shellcheck, self-test
+- **Dependencies:** R-1, R-2, R-4
+
+### R-18: Design System Rules (No Emojis, Professional UI)
+- **Impact:** High - Prevents constant "no emojis" reminders
+- **Effort:** Low - 1-2 hours
+- **Status:** todo
+- **Validation:** SKILL.md contains UI/UX rules, generated projects include DESIGN.md
+- **Dependencies:** R-4
+- **Notes:** Add FR-Design rules to SKILL.md; generate docs/DESIGN.md in scaffolding
+
+### R-19: Enhanced Scaffolding (DESIGN.md + Updated CI)
+- **Impact:** High - Better frontend projects from day one
+- **Effort:** Low - 2 hours
+- **Status:** todo
+- **Validation:** `make new-project` generates DESIGN.md and updated CI with v4 actions
+- **Dependencies:** R-18
+
+## [MEDIUM] Design System & Frontend Quality
+
+### R-18: Design System Rules (No Emojis, Professional UI)
+- **Impact:** High - Prevents constant "no emojis" reminders
+- **Effort:** Low - 1-2 hours
+- **Status:** done
+- **Validation:** SKILL.md contains UI/UX rules, generated projects include DESIGN.md
+- **Dependencies:** R-4
+- **Notes:** Added FR-D1 through FR-D5 to SKILL.md; docs/DESIGN.md created
+
+### R-19: Enhanced Scaffolding (DESIGN.md + Updated CI)
+- **Impact:** High - Better frontend projects from day one
+- **Effort:** Low - 2 hours
+- **Status:** done
+- **Validation:** `make new-project` generates DESIGN.md and updated CI with v4 actions
+- **Dependencies:** R-18
+- **Notes:** new-project.sh now generates DESIGN.md template; CI uses checkout@v4
 
 ## [MEDIUM] Templates & Experience
 
@@ -118,13 +158,19 @@
 
 ## Milestones
 
-**M1: Core Functional (R-1 through R-8)**
+**M1: Core Functional (R-1 through R-8) — DONE**
 - AES actually works on real projects
 - Quality gates enforced
 - CI/CD automated
 - Target: Week 1
 
-**M2: Developer Experience (R-9 through R-11)**
+**M2: Design System & Quality (R-18, R-19) — DONE**
+- Design system rules in SKILL.md (no emojis, professional UI)
+- Enhanced scaffolding with DESIGN.md template
+- Updated CI with shellcheck and latest actions
+- Target: This session
+
+**M3: Developer Experience (R-9 through R-11)**
 - Great templates and scaffolding
 - Self-testing passes
 - Target: Week 2
