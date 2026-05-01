@@ -44,21 +44,6 @@
 - **Validation:** `.github/workflows/ci.yml` runs `make check`, shellcheck, self-test
 - **Dependencies:** R-1, R-2, R-4
 
-### R-18: Design System Rules (No Emojis, Professional UI)
-- **Impact:** High - Prevents constant "no emojis" reminders
-- **Effort:** Low - 1-2 hours
-- **Status:** todo
-- **Validation:** SKILL.md contains UI/UX rules, generated projects include DESIGN.md
-- **Dependencies:** R-4
-- **Notes:** Add FR-Design rules to SKILL.md; generate docs/DESIGN.md in scaffolding
-
-### R-19: Enhanced Scaffolding (DESIGN.md + Updated CI)
-- **Impact:** High - Better frontend projects from day one
-- **Effort:** Low - 2 hours
-- **Status:** todo
-- **Validation:** `make new-project` generates DESIGN.md and updated CI with v4 actions
-- **Dependencies:** R-18
-
 ## [MEDIUM] Design System & Frontend Quality
 
 ### R-18: Design System Rules (No Emojis, Professional UI)
@@ -76,6 +61,22 @@
 - **Validation:** `make new-project` generates DESIGN.md and updated CI with v4 actions
 - **Dependencies:** R-18
 - **Notes:** new-project.sh now generates DESIGN.md template; CI uses checkout@v4
+
+### R-20: Phase 0 Reconnaissance (Read Before Analyzing)
+- **Impact:** High - Prevents blind hostile analysis
+- **Effort:** Low - 1 hour
+- **Status:** done
+- **Validation:** SKILL.md now includes Phase 0 that instructs model to explore codebase first
+- **Dependencies:** R-4
+- **Notes:** Added explicit reconnaissance steps: read docs, git log, affected files, existing tests
+
+### R-21: Structured Validation & Environment Error Handling
+- **Impact:** High - Prevents silent failures and workarounds
+- **Effort:** Low - 1 hour
+- **Status:** done
+- **Validation:** SKILL.md now specifies report structure when gates fail; environment errors surfaced properly
+- **Dependencies:** R-4
+- **Notes:** Phase 4 now has mandatory report structure; environment error section added with "do not work around" rule
 
 ## [MEDIUM] Templates & Experience
 
@@ -164,10 +165,11 @@
 - CI/CD automated
 - Target: Week 1
 
-**M2: Design System & Quality (R-18, R-19) — DONE**
+**M2: Design System & Quality (R-18, R-19, R-20, R-21) — DONE**
 - Design system rules in SKILL.md (no emojis, professional UI)
 - Enhanced scaffolding with DESIGN.md template
-- Updated CI with shellcheck and latest actions
+- Phase 0 reconnaissance prevents blind analysis
+- Structured validation prevents silent failures
 - Target: This session
 
 **M3: Developer Experience (R-9 through R-11)**

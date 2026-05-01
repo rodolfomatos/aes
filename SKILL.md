@@ -13,7 +13,8 @@ compatibility: claude-code, opencode, claude-desktop
 tools: []
 metadata:
   author: AES Maintainers
-  version: 3.0
+  version: 3.1
+  last_updated: 2026-05-01
   tags: engineering, protocol, quality, documentation, testing
 ---
 
@@ -55,6 +56,34 @@ Transform vague requests: `"Add login"` → `"Write tests for login flow, then m
 
 ## Execution Loop (Mandatory for Every Task)
 
+### Phase 0 — Reconnaissance (Do This First)
+
+**Before** writing a single line of code, explore the codebase:
+
+```
+1. Read existing documentation:
+   - docs/VISION.md (if exists) — understand the problem space
+   - docs/REQUIREMENTS.md (if exists) — understand what's required
+   - docs/ROADMAP.md (if exists) — understand current priorities
+   - docs/DESIGN.md (if exists) — understand design constraints
+
+2. Understand recent trajectory:
+   - git log --oneline -10 — what changed recently
+   - git diff --stat HEAD~5 — files most touched
+
+3. Read the files directly affected by the task:
+   - Identify the specific files that need changes
+   - Read their current implementation
+   - Note existing patterns and conventions
+
+4. Identify existing test coverage:
+   - Are there tests for the files you're changing?
+   - What is the test structure?
+   - Will your changes require new tests?
+
+Do NOT skip this step. An hostile analysis without reconnaissance is speculation.
+```
+
 ### Phase 1 — Hostile Analysis
 
 Before writing a single line of code, answer these questions explicitly:
@@ -90,11 +119,34 @@ State the chosen approach clearly:
 
 - Minimal diff. No dead code. No commented-out blocks.
 - Every new function has a docstring or inline comment explaining *why*, not *what*.
-- If you discover scope creep mid-implementation → stop, document it as a separate task, continue.
+
+**If scope creep found mid-implementation:**
+→ STOP immediately
+→ Add to `docs/ROADMAP.md` under `[Backlog]` with tag `[DISCOVERED mid-task]`
+→ Note: file and line where you found it, and why it's out of scope
+→ Continue with **original scope only** — do NOT expand
 
 ### Phase 4 — Validation
 
 Run quality gates appropriate for the project's language (see Language Playbooks below).
+
+**If validation fails:**
+
+```
+REPORT STRUCTURE (mandatory):
+- Which gate failed: [docs / tests / lint / format / coverage]
+- What failed: [specific error message]
+- Pre-existing or introduced by this change? [check git diff]
+  - If pre-existing: report but DO NOT block on it
+  - If introduced: REVERT your change and fix before proceeding
+- Is it safe to continue? [yes/no — based on above]
+```
+
+**Rules:**
+- Tests failing → DO NOT proceed. Fix or revert.
+- Pre-existing failures → report but continue (they are not your responsibility)
+- Lint errors → DO NOT proceed. Fix before continuing.
+- Docs missing → DO NOT proceed. Create them first.
 
 Explicitly verify:
 - [ ] Tests pass (including edge cases you identified in Phase 1)
@@ -110,6 +162,30 @@ Before declaring done, answer:
 - *Would a teammate understand this without asking me?*
 
 **If any answer is unsatisfactory → restart the loop from Phase 1.**
+
+### Environment Errors
+
+If `make check`, `make test`, or any build tool fails due to **environment issues** (not code issues):
+
+```
+1. DO NOT work around it silently
+   - Don't disable tests to make CI pass
+   - Don't comment out failing checks
+   - Don't assume "it works on my machine"
+
+2. Identify the root cause:
+   - Missing dependency? → Document which, suggest how to install
+   - Wrong version? → Document expected vs actual version
+   - Permission error? → Document the permission issue
+   - CI/local mismatch? → Document the discrepancy
+
+3. Surface it to the user:
+   "Cannot proceed. Environment issue detected:
+   - [specific error]
+   - Expected: [what should be there]
+   - Found: [what exists]
+   Please fix and retry."
+```
 
 ---
 
@@ -140,6 +216,19 @@ Every AES project must have these files in `docs/`:
 
 If these don't exist → create them **before** any feature work. A feature without a VISION is
 a guess. A ROADMAP without priorities is noise.
+
+**If docs exist but appear stale:**
+- Last modified > 30 days ago
+- Content contradicts current code implementation
+- Requirements have changed but docs weren't updated
+
+```
+ACTION REQUIRED:
+→ Flag the discrepancy explicitly to the user
+→ Update before proceeding, OR
+→ Note it as a known gap in docs/TASKS/[task-name].md
+→ DO NOT silently ignore stale documentation
+```
 
 ---
 
